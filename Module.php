@@ -19,9 +19,6 @@ namespace Aurora\Modules\MailSignupFastpanel;
  */
 class Module extends \Aurora\System\Module\AbstractModule
 {
-    /**
-     * @var
-     */
     public function init()
     {
         $this->subscribeEvent('MailSignup::Signup::before', [$this, 'onAfterSignup']);
@@ -30,8 +27,8 @@ class Module extends \Aurora\System\Module\AbstractModule
     /**
      * Send GET request via cURL
      * @param string $sUrl
-	 * @param string $sToken
-	 * @return object|bool
+     * @param string $sToken
+     * @return object|bool
      */
     private function getdata($sUrl, $sToken="")
     {
@@ -57,9 +54,9 @@ class Module extends \Aurora\System\Module\AbstractModule
     /**
      * Send POST request via cURL
      * @param string $sUrl
-	 * @param string $aPost
-	 * @param string $sToken
-	 * @return object|bool
+     * @param string $aPost
+     * @param string $sToken
+     * @return object|bool
      */
     private function postdata($sUrl, $aPost, $sToken="")
     {
@@ -88,7 +85,7 @@ class Module extends \Aurora\System\Module\AbstractModule
      * Creates account with credentials specified in registration form
      *
      * @param array $aArgs New account credentials.
-     * @param type $mResult Is passed by reference.
+     * @param mixed $mResult Is passed by reference.
      */
     public function onAfterSignup($aArgs, &$mResult)
     {
@@ -102,81 +99,79 @@ class Module extends \Aurora\System\Module\AbstractModule
             $bPrevState = \Aurora\System\Api::skipCheckUserRole(true);
             [$sUsername, $sDomain] = explode("@", $sLogin);
             if (!empty($sDomain)) {
-                
                 $sFastpanelURL = rtrim($this->getConfig('FastpanelURL', ''), "/");
                 $sFastpanelAdminUser = $this->getConfig('FastpanelAdminUser', '');
                 $sFastpanelAdminPass = $this->getConfig('FastpanelAdminPass', '');
-				
-				$aPost = array("password"=>$sFastpanelAdminPass, "username"=>$sFastpanelAdminUser);
-				$oRes1 = $this->postdata($sFastpanelURL."/login", json_encode($aPost));
 
-				if ($oRes1===false) {
-					throw new \Aurora\System\Exceptions\ApiException(0, null, "Fastpanel admin auth general error");
-				}
+                $aPost = array("password"=>$sFastpanelAdminPass, "username"=>$sFastpanelAdminUser);
+                $oRes1 = $this->postdata($sFastpanelURL."/login", json_encode($aPost));
 
-				if (isset($oRes1->code) && isset($oRes1->message)) {
-					throw new \Aurora\System\Exceptions\ApiException(0, null, "Fastpanel admin auth error ".$oRes1->code.": ".$oRes1->message);
-				}
+                if ($oRes1===false) {
+                    throw new \Aurora\System\Exceptions\ApiException(0, null, "Fastpanel admin auth general error");
+                }
 
-				if (!isset($oRes1->data->token)) {
-					throw new \Aurora\System\Exceptions\ApiException(0, null, "Fastpanel admin auth failed");
-				}
+                if (isset($oRes1->code) && isset($oRes1->message)) {
+                    throw new \Aurora\System\Exceptions\ApiException(0, null, "Fastpanel admin auth error ".$oRes1->code.": ".$oRes1->message);
+                }
 
-				$sToken = $oRes1->data->token;
-				$oRes2 = $this->getdata($sFastpanelURL."/api/email/domains", $sToken);
-				if (($oRes2===false)||(!isset($oRes2->data))) {
-					throw new \Aurora\System\Exceptions\ApiException(0, null, "Fastpanel API error: could not get list of domains");
-				}
+                if (!isset($oRes1->data->token)) {
+                    throw new \Aurora\System\Exceptions\ApiException(0, null, "Fastpanel admin auth failed");
+                }
 
-				$aDomainList = $oRes2->data;
-				$iDomainId = null;
-				foreach ($aDomainList as $oDomainListItem) {
-					if ($oDomainListItem->name == $sDomain) {
-						$iDomainId = $oDomainListItem->id;
-					}
-				}
+                $sToken = $oRes1->data->token;
+                $oRes2 = $this->getdata($sFastpanelURL."/api/email/domains", $sToken);
+                if (($oRes2===false)||(!isset($oRes2->data))) {
+                    throw new \Aurora\System\Exceptions\ApiException(0, null, "Fastpanel API error: could not get list of domains");
+                }
 
-				if ($iDomainId == null) {
-					throw new \Aurora\System\Exceptions\ApiException(0, null, "Fastpanel API error: could not locate email domain ".$sDomain);
-				}
-				
-				$aPost = array("login" => $sUsername, "password" => $sPassword, "quota" => $iQuota, "redirects" => array(), "aliases" => array(), "spam_to_junk" => false);
-				$oRes3 = $this->postdata($sFastpanelURL."/api/email/domains/".$iDomainId."/boxs", json_encode($aPost), $sToken);
+                $aDomainList = $oRes2->data;
+                $iDomainId = null;
+                foreach ($aDomainList as $oDomainListItem) {
+                    if ($oDomainListItem->name == $sDomain) {
+                        $iDomainId = $oDomainListItem->id;
+                    }
+                }
 
-				if (isset($oRes3->errors->password)) {
-					throw new \Aurora\System\Exceptions\ApiException(0, null, "Fastpanel API error: ".$oRes3->errors->password);
-				}
-				
-				if (!isset($oRes3->data->id)) {
-					throw new \Aurora\System\Exceptions\ApiException(0, null, "Fastpanel API error: signup failure");
-				}
-				
-				$iUserId = \Aurora\Modules\Core\Module::Decorator()->CreateUser(0, $sLogin);
-				$oUser = \Aurora\System\Api::getUserById((int) $iUserId);
-				try {
-					$oAccount = \Aurora\Modules\Mail\Module::Decorator()->CreateAccount($oUser->Id, $sFriendlyName, $sLogin, $sLogin, $sPassword);
-					if ($oAccount instanceof \Aurora\Modules\Mail\Models\MailAccount) {
-						$iTime = $bSignMe ? 0 : time();
-						$sAuthToken = \Aurora\System\Api::UserSession()->Set(
-							[
-								'token'		=> 'auth',
-								'sign-me'		=> $bSignMe,
-								'id'			=> $oAccount->IdUser,
-								'account'		=> $oAccount->Id,
-								'account_type'	=> $oAccount->getName()
-							],
-							$iTime
-						);
-						$mResult = ['AuthToken' => $sAuthToken];
-					}
-				} catch (\Exception $oException) {
-					if ($oException instanceof \Aurora\Modules\Mail\Exceptions\Exception &&
-						$oException->getCode() === \Aurora\Modules\Mail\Enums\ErrorCodes::CannotLoginCredentialsIncorrect) {
-						\Aurora\Modules\Core\Module::Decorator()->DeleteUser($oUser->Id);
-					}
-					throw $oException;
-				}
+                if ($iDomainId == null) {
+                    throw new \Aurora\System\Exceptions\ApiException(0, null, "Fastpanel API error: could not locate email domain ".$sDomain);
+                }
 
+                $aPost = array("login" => $sUsername, "password" => $sPassword, "quota" => $iQuota, "redirects" => array(), "aliases" => array(), "spam_to_junk" => false);
+                $oRes3 = $this->postdata($sFastpanelURL."/api/email/domains/".$iDomainId."/boxs", json_encode($aPost), $sToken);
+
+                if (isset($oRes3->errors->password)) {
+                    throw new \Aurora\System\Exceptions\ApiException(0, null, "Fastpanel API error: ".$oRes3->errors->password);
+                }
+
+                if (!isset($oRes3->data->id)) {
+                    throw new \Aurora\System\Exceptions\ApiException(0, null, "Fastpanel API error: signup failure");
+                }
+
+                $iUserId = \Aurora\Modules\Core\Module::Decorator()->CreateUser(0, $sLogin);
+                $oUser = \Aurora\System\Api::getUserById((int) $iUserId);
+                try {
+                    $oAccount = \Aurora\Modules\Mail\Module::Decorator()->CreateAccount($oUser->Id, $sFriendlyName, $sLogin, $sLogin, $sPassword);
+                    if ($oAccount instanceof \Aurora\Modules\Mail\Models\MailAccount) {
+                        $iTime = $bSignMe ? 0 : time();
+                        $sAuthToken = \Aurora\System\Api::UserSession()->Set(
+                            [
+                                'token'		=> 'auth',
+                                'sign-me'		=> $bSignMe,
+                                'id'			=> $oAccount->IdUser,
+                                'account'		=> $oAccount->Id,
+                                'account_type'	=> $oAccount->getName()
+                            ],
+                            $iTime
+                        );
+                        $mResult = ['AuthToken' => $sAuthToken];
+                    }
+                } catch (\Exception $oException) {
+                    if ($oException instanceof \Aurora\Modules\Mail\Exceptions\Exception &&
+                        $oException->getCode() === \Aurora\Modules\Mail\Enums\ErrorCodes::CannotLoginCredentialsIncorrect) {
+                        \Aurora\Modules\Core\Module::Decorator()->DeleteUser($oUser->Id);
+                    }
+                    throw $oException;
+                }
             }
             \Aurora\System\Api::skipCheckUserRole($bPrevState);
         }

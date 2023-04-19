@@ -15,6 +15,8 @@ namespace Aurora\Modules\MailSignupFastpanel;
  * @license https://afterlogic.com/products/common-licensing Afterlogic Software License
  * @copyright Copyright (c) 2023, Afterlogic Corp.
  *
+ * @property Settings $oModuleSettings
+ *
  * @package Modules
  */
 class Module extends \Aurora\System\Module\AbstractModule
@@ -112,14 +114,14 @@ class Module extends \Aurora\System\Module\AbstractModule
             $sPassword = trim($aArgs['Password']);
             $sFriendlyName = isset($aArgs['Name']) ? trim($aArgs['Name']) : '';
             $bSignMe = isset($aArgs['SignMe']) ? (bool) $aArgs['SignMe'] : false;
-            $iQuota = (int) $this->getConfig('UserDefaultQuotaMB', 20);
+            $iQuota = (int) $this->oModuleSettings->UserDefaultQuotaMB;
 
             $bPrevState = \Aurora\System\Api::skipCheckUserRole(true);
             [$sUsername, $sDomain] = explode("@", $sLogin);
             if (!empty($sDomain)) {
-                $sFastpanelURL = rtrim($this->getConfig('FastpanelURL', ''), "/");
-                $sFastpanelAdminUser = $this->getConfig('FastpanelAdminUser', '');
-                $sFastpanelAdminPass = $this->getConfig('FastpanelAdminPass', '');
+                $sFastpanelURL = rtrim($this->oModuleSettings->FastpanelURL, "/");
+                $sFastpanelAdminUser = $this->oModuleSettings->FastpanelAdminUser;
+                $sFastpanelAdminPass = $this->oModuleSettings->FastpanelAdminPass;
 
                 $aPost = array("password"=>$sFastpanelAdminPass, "username"=>$sFastpanelAdminUser);
                 $oRes1 = $this->postdata($sFastpanelURL."/login", json_encode($aPost));

@@ -44,7 +44,7 @@ class Settings extends \Aurora\System\Module\Settings
                 "",
                 "string",
                 null,
-                "Admin password of Fastpanel installation",
+                "Admin password of Fastpanel installation. Will be automatically encrypted.",
             ),
             "UserDefaultQuotaMB" => new SettingsProperty(
                 20,

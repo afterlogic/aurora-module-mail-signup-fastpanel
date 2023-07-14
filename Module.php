@@ -129,6 +129,13 @@ class Module extends \Aurora\System\Module\AbstractModule
                 $sFastpanelAdminUser = $this->oModuleSettings->FastpanelAdminUser;
                 $sFastpanelAdminPass = $this->oModuleSettings->FastpanelAdminPass;
 
+                if ($sFastpanelAdminPass && !\Aurora\System\Utils::IsEncryptedValue($sFastpanelAdminPass)) {
+                    $this->setConfig('FastpanelAdminPass', \Aurora\System\Utils::EncryptValue($sFastpanelAdminPass));
+                    $this->saveModuleConfig();
+                } else {
+                    $sFastpanelAdminPass = \Aurora\System\Utils::DecryptValue($sFastpanelAdminPass);
+                }
+
                 $aPost = array("password"=>$sFastpanelAdminPass, "username"=>$sFastpanelAdminUser);
                 $oRes1 = $this->postdata($sFastpanelURL."/login", json_encode($aPost));
 

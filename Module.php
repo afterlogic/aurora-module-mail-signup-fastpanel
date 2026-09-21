@@ -64,7 +64,6 @@ class Module extends \Aurora\System\Module\AbstractModule
         }
         curl_setopt_array($rCurl, $acurlOpt);
         $mResult = curl_exec($rCurl);
-        curl_close($rCurl);
         $oResult = ($mResult !== false) ? json_decode($mResult) : false;
         return $oResult;
     }
@@ -94,7 +93,6 @@ class Module extends \Aurora\System\Module\AbstractModule
         }
         curl_setopt_array($rCurl, $acurlOpt);
         $mResult = curl_exec($rCurl);
-        curl_close($rCurl);
         $oResult = ($mResult !== false) ? json_decode($mResult) : false;
         return $oResult;
     }
